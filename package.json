@@ -1,10 +1,13 @@
 {
   "name": "corewar-stadium-service",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The coreware stadium service",
   "main": "app/corewar_stadium_service.js",
   "scripts": {
-    "serve": "forever start -p logs/ -l forever.log -a -o logs/out.log -e logs/err.log app/corewar_stadium_service.js",
+    "clean": "rm -fr logs",
+    "dist-clean": "npm run clean node_modules",
+    "start": "mkdir -p logs && forever start -p logs/ -l forever.log -a -o logs/out.log -e logs/err.log app/corewar_stadium_service.js",
+    "stop": "forever stop app/corewar_stadium_service.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Simon Relet",

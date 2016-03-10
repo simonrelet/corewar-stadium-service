@@ -60,25 +60,32 @@ let deleteShipFile = result => {
     .then(() => Promise.resolve(result.result));
 };
 
-let runStadium = files => {
-  return new Promise((resolve, reject) => {
-      exec(`${STADIUM_CMD} ${files.cor} > ${files.log}`, (err, stdout, stderr) => {
-        if (err) {
-          reject(`Error while runing the stadium: ${err}`);
-        } else if (stderr) {
-          reject(`Error while runing the stadium: ${stderr}`);
-        } else {
-          resolve(files);
-        }
-      });
-    })
-    .catch(err => {
-      deleteShipFile({
-        files: files
-      }).catch(console.error);
+let getVerbosity = req => {
+  return !!req.query.v;
+};
 
-      return Promise.reject(err);
-    });
+let runStadium = verbose => {
+  let verbosity = verbose ? '-v' : '';
+  return files => {
+    return new Promise((resolve, reject) => {
+        exec(`${STADIUM_CMD} ${verbosity} ${files.cor} > ${files.log}`, (err, stdout, stderr) => {
+          if (err) {
+            reject(`Error while runing the stadium: ${err}`);
+          } else if (stderr) {
+            reject(`Error while runing the stadium: ${stderr}`);
+          } else {
+            resolve(files);
+          }
+        });
+      })
+      .catch(err => {
+        deleteShipFile({
+          files: files
+        }).catch(console.error);
+
+        return Promise.reject(err);
+      });
+  };
 };
 
 let readLogFile = files => {
@@ -113,7 +120,7 @@ router.post('/', (req, res) => {
   ensureTmpDir()
     .then(checkRequest(req))
     .then(writeShipFile(getRndFiles()))
-    .then(runStadium)
+    .then(runStadium(getVerbosity(req)))
     .then(readLogFile)
     .then(deleteShipFile)
     .then(sendResult(res))
