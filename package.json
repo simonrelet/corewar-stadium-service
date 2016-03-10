@@ -1,6 +1,6 @@
 {
   "name": "corewar-stadium-service",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The coreware stadium service",
   "main": "app/corewar_stadium_service.js",
   "scripts": {
