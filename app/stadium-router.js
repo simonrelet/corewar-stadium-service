@@ -61,14 +61,14 @@ let deleteShipFile = result => {
 };
 
 let getVerbosity = req => {
-  return !!req.query.v;
+  let value = Number.parseInt(req.query.v);
+  return Number.isNaN(value) ? 0 : value;
 };
 
-let runStadium = verbose => {
-  let verbosity = verbose ? '-v' : '';
+let runStadium = verbosity => {
   return files => {
     return new Promise((resolve, reject) => {
-        exec(`${STADIUM_CMD} ${verbosity} ${files.cor} > ${files.log}`, (err, stdout, stderr) => {
+        exec(`${STADIUM_CMD} -v ${verbosity} ${files.cor} > ${files.log}`, (err, stdout, stderr) => {
           if (err) {
             reject(`Error while runing the stadium: ${err}`);
           } else if (stderr) {
