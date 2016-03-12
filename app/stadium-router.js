@@ -61,8 +61,11 @@ let deleteShipFile = result => {
 };
 
 let getVerbosity = req => {
-  let value = Number.parseInt(req.query.v);
-  return Number.isNaN(value) ? 0 : value;
+  let value = 0;
+  if (req.query.v && /^[0-9]+$/.test(req.query.v)) {
+    value = Number.parseInt(req.query.v);
+  }
+  return value;
 };
 
 let runStadium = verbosity => {
