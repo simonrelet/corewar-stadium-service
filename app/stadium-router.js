@@ -7,6 +7,7 @@ const exec = require('child_process').exec;
 
 const SHIPS_PATH = 'bin/ships/';
 const STADIUM_CMD = 'java -jar bin/stadium.jar';
+const NUMBER_REGEX = /^[0-9]+$/;
 
 router.use(bodyParser.json());
 router.use(bodyParser.urlencoded({
@@ -60,18 +61,23 @@ let deleteShipFile = result => {
     .then(() => Promise.resolve(result.result));
 };
 
-let getVerbosity = req => {
-  let value = 0;
-  if (req.query.v && /^[0-9]+$/.test(req.query.v)) {
-    value = Number.parseInt(req.query.v);
+let getIntegerOption = (value, optionStr) => {
+  if (value && NUMBER_REGEX.test(value)) {
+    return `-${optionStr} ${Number.parseInt(value)}`;
   }
-  return value;
+  return '';
 };
 
-let runStadium = verbosity => {
+let getOptions = req => {
+  return ['v', 'f', 'l']
+    .map(elt => getIntegerOption(req.query[elt], elt))
+    .reduce((prev, elt) => `${prev} ${elt}`, '');
+};
+
+let runStadium = options => {
   return files => {
     return new Promise((resolve, reject) => {
-        exec(`${STADIUM_CMD} -v ${verbosity} ${files.cor} > ${files.log}`, (err, stdout, stderr) => {
+        exec(`${STADIUM_CMD} ${options} ${files.cor} > ${files.log}`, (err, stdout, stderr) => {
           if (err) {
             reject(`Error while runing the stadium: ${err}`);
           } else if (stderr) {
@@ -123,7 +129,7 @@ router.post('/', (req, res) => {
   ensureTmpDir()
     .then(checkRequest(req))
     .then(writeShipFile(getRndFiles()))
-    .then(runStadium(getVerbosity(req)))
+    .then(runStadium(getOptions(req)))
     .then(readLogFile)
     .then(deleteShipFile)
     .then(sendResult(res))
