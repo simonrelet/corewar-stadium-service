@@ -15,6 +15,8 @@
   "dependencies": {
     "body-parser": "^1.14.2",
     "express": "^4.13.3",
-    "fs-promise": "^0.5.0"
+    "fs-promise": "^0.5.0",
+    "request-promise": "^2.0.1",
+    "ursa": "^0.9.3"
   }
 }
