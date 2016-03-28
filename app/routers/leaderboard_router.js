@@ -2,6 +2,8 @@
 
 const router = require('./default_router')();
 const dbUtilities = require('../db_utilities');
+const constants = require('../constants');
+const prettyPrinter = require('../pretty_printer');
 
 let getOptions = req => {
   return {
@@ -10,20 +12,38 @@ let getOptions = req => {
 };
 
 let getScores = () => {
-  return dbUtilities.getScores();
+  return dbUtilities.getScores()
+    .catch(err => Promise.reject({
+      status: constants.status.serverError,
+      message: err
+    }));
 };
 
 let prettyPrintScores = scores => {
-  return scores.map((score, index) =>
-      `  #${index + 1}   ${score.shipName} in ${score.cycles} cycles by ${score.captain}, '${score.shipComment}'.`
-    )
-    .reduce((prev, score) => `${prev}${score}\n`, '\n');
+  let ranking = {
+    cycles: 0,
+    rank: 0
+  };
+  scores = scores.map((score, index) => {
+    if (score.cycles > ranking.cycles) {
+      ranking.cycles = score.cycles;
+      ranking.rank = index + 1;
+    }
+    return {
+      rank: ranking.rank,
+      cycles: score.cycles,
+      name: score.shipName,
+      captain: score.captain,
+      comment: score.shipComment
+    };
+  });
+  return prettyPrinter.scores(scores);
 };
 
 let sendResult = (res, options) => {
   return scores => {
     if (options.pretty) {
-      res.send(`${prettyPrintScores(scores)}\n`);
+      res.send(prettyPrintScores(scores));
     } else {
       res.json(scores);
     }
@@ -32,8 +52,9 @@ let sendResult = (res, options) => {
 
 let handleError = (res, options) => {
   return err => {
+    res.status(err.status);
     if (options.pretty) {
-      res.send(err);
+      res.send(`${err}\n`);
     } else {
       res.json({
         error: {

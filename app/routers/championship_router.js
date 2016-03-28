@@ -3,16 +3,25 @@
 const stadium = require('../stadium');
 const router = require('./default_router')();
 const dbUtilities = require('../db_utilities');
+const constants = require('../constants');
+const prettyPrinter = require('../pretty_printer');
+
+let getBadRequestError = message => {
+  return {
+    status: constants.status.badRequest,
+    message: message
+  };
+};
 
 let checkRequest = req => {
   if (!req.body.captain) {
-    return Promise.reject(`A ship needs it's captain!`);
+    return Promise.reject(getBadRequestError(`A ship needs it's captain!`));
   }
   if (!req.body.ship) {
-    return Promise.reject(`Where's the ship dude?`);
+    return Promise.reject(getBadRequestError(`Where's the ship dude?`));
   }
   if (!req.body.signature) {
-    return Promise.reject(`Are you a pirate? Go sign your ship.`);
+    return Promise.reject(getBadRequestError(`Are you a pirate? Go sign your ship.`));
   }
   return Promise.resolve({
     captain: req.body.captain,
@@ -33,7 +42,8 @@ let authenticateShip = params => {
     .then(captain => Promise.resolve({
       captain: captain,
       ship: params.ship
-    }));
+    }))
+    .catch(err => Promise.reject(getBadRequestError(err)));
 };
 
 let postResult = params => {
@@ -41,11 +51,26 @@ let postResult = params => {
     if (stadiumResult.result === 'finished') {
       return dbUtilities.publishScore(params.captain, params.ship,
           stadiumResult.cycles)
-        .then(() => Promise.resolve(Object.assign(params, {
-          cycles: stadiumResult.cycles
-        })));
+        .catch(err => Promise.reject({
+          status: constants.status.serverError,
+          message: err
+        }))
+        .then(res => {
+          if (res === 'ok') {
+            return Promise.resolve(Object.assign(params, {
+              cycles: stadiumResult.cycles
+            }));
+          }
+          return Promise.reject({
+            status: constants.status.ok,
+            message: res
+          });
+        });
     } else {
-      return Promise.reject(`You crashed like a noob...`);
+      return Promise.reject({
+        status: constants.status.ok,
+        message: `You crashed like a noob...`
+      });
     }
   };
 };
@@ -57,12 +82,22 @@ let getRank = params => {
     .then(results => Promise.resolve({
       cycles: params.cycles,
       rank: results[0],
-      ship: results[1].name
+      shipName: results[1].name,
+      shipComment: results[1].comment,
+      captain: params.captain
+    }))
+    .catch(err => Promise.reject({
+      status: constants.status.serverError,
+      message: err
     }));
 };
 
 let runStadium = params => {
   return stadium.run(params.ship)
+    .catch(err => Promise.reject({
+      status: constants.status.serverError,
+      message: err
+    }))
     .then(postResult(params))
     .then(getRank);
 };
@@ -70,7 +105,13 @@ let runStadium = params => {
 let sendResult = (res, options) => {
   return params => {
     if (options.pretty) {
-      res.send(`#${params.rank} ${params.ship} in ${params.cycles} cycles.\n`);
+      res.send(prettyPrinter.scores([{
+        rank: params.rank,
+        cycles: params.cycles,
+        name: params.shipName,
+        captain: params.captain.name,
+        comment: params.shipComment
+      }]));
     } else {
       res.json(params);
     }
@@ -79,12 +120,13 @@ let sendResult = (res, options) => {
 
 let handleError = (res, options) => {
   return err => {
+    res.status(err.status);
     if (options.pretty) {
-      res.send(err);
+      res.send(`${err.message}\n`);
     } else {
       res.json({
         error: {
-          message: err
+          message: err.message
         }
       });
     }

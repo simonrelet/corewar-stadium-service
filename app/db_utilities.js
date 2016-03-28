@@ -14,9 +14,7 @@ let getCaptain = captainName => {
     if (captains.length === 1) {
       return Promise.resolve(captains[0]);
     }
-    return Promise.reject({
-      message: `No captain found for: '${captainName}'`
-    });
+    return Promise.reject(`The captain ${captainName} doesn't exist.`);
   });
 };
 
@@ -29,19 +27,45 @@ let checkCaptain = (captain, value, signature) => {
     if (verifier.verify(key, signature, 'base64')) {
       resolve(captain);
     } else {
-      reject({
-        message: `Captain identification failed`
-      });
+      reject(`Captain identification failed`);
     }
   });
 };
 
-let publishScore = (captain, ship, cycles) => {
-  return stadium.getShipInfo(ship)
-    .then(shipInfo => {
+let toPublicScore = score => {
+  return {
+    id: score.id,
+    captain: score.captain.name,
+    cycles: score.cycles,
+    shipName: score.shipName,
+    shipComment: score.shipComment
+  };
+};
+
+let getScore = (captain, shipInfo) => {
+  let req = `captainId=${captain.id}&shipName=${shipInfo.name}`;
+  let options = {
+    uri: `${constants.DBUrl}/scores/?${req}&_expand=captain`,
+    json: true
+  };
+  return rp(options).then(scores => {
+    if (scores.length === 1) {
+      return Promise.resolve(toPublicScore(scores[0]));
+    }
+    return Promise.resolve(null);
+  });
+};
+
+let addUpdateScore = (captain, shipInfo, ship, cycles) => {
+  return getScore(captain, shipInfo)
+    .then(score => {
+      if (!!score && score.cycles < cycles) {
+        return Promise.resolve('You cannot downgrade a ship score!');
+      }
+
       let options = {
-        method: 'POST',
-        uri: `${constants.DBUrl}/scores/`,
+        method: !!score ? 'PATCH' : 'POST',
+        uri: `${constants.DBUrl}/scores/${!!score ? score.id : ''}`,
         body: {
           captainId: captain.id,
           shipName: shipInfo.name,
@@ -51,8 +75,13 @@ let publishScore = (captain, ship, cycles) => {
         },
         json: true
       };
-      return rp(options).then(() => captain);
+      return rp(options).then(() => Promise.resolve('ok'));
     });
+};
+
+let publishScore = (captain, ship, cycles) => {
+  return stadium.getShipInfo(ship)
+    .then(shipInfo => addUpdateScore(captain, shipInfo, ship, cycles));
 };
 
 let getRankForCycles = cycles => {
@@ -69,12 +98,7 @@ let getScores = () => {
     json: true
   };
   return rp(options).then(scores => {
-    return Promise.resolve(scores.map(score => ({
-      captain: score.captain.name,
-      cycles: score.cycles,
-      shipName: score.shipName,
-      shipComment: score.shipComment
-    })));
+    return Promise.resolve(scores.map(toPublicScore));
   });
 };
 

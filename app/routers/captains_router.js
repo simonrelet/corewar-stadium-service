@@ -7,6 +7,12 @@ const constants = require('../constants');
 
 const NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 
+let getOptions = req => {
+  return {
+    pretty: !!req.query.pretty
+  };
+};
+
 let checkRequest = req => {
   if (!req.body.name) {
     return Promise.reject(`You'r no captain without a name!`);
@@ -32,7 +38,7 @@ let checkCaptainName = captain => {
       if (captains.length === 0) {
         return Promise.resolve(captain);
       }
-      return Promise.reject(`A captain already exists by this name`);
+      return Promise.reject(`A captain already exists by this name.`);
     });
   }
 };
@@ -56,34 +62,44 @@ let registerCaptain = captain => {
     },
     json: true
   };
-  return rp(options).then(() => captain);
+  return rp(options).then(() => `Captain ${captain.name} has been registered!`);
 };
 
-let sendResult = res => {
+let sendResult = (res, options) => {
   return result => {
-    console.log(result);
-    res.json(result);
+    if (options.pretty) {
+      res.send(`${result}\n`);
+    } else {
+      res.json({
+        message: result
+      });
+    }
   };
 };
 
-let handleError = res => {
+let handleError = (res, options) => {
   return err => {
-    console.error(err);
-    res.json({
-      error: {
-        message: err
-      }
-    });
+    res.status(constants.status.badRequest);
+    if (options.pretty) {
+      res.send(`${err}\n`);
+    } else {
+      res.json({
+        error: {
+          message: err
+        }
+      });
+    }
   };
 };
 
 router.post('/', (req, res) => {
+  let options = getOptions(req);
   checkRequest(req)
     .then(checkCaptainName)
     .then(checkCaptainKey)
     .then(registerCaptain)
-    .then(sendResult(res))
-    .catch(handleError(res));
+    .then(sendResult(res, options))
+    .catch(handleError(res, options));
 });
 
 module.exports = router;
