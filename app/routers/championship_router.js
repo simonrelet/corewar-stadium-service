@@ -1,10 +1,8 @@
 'use strict';
 
-const rp = require('request-promise');
-const ursa = require('ursa');
 const stadium = require('../stadium');
 const router = require('./default_router')();
-const constants = require('../constants');
+const dbUtilities = require('../db_utilities');
 
 let checkRequest = req => {
   if (!req.body.captain) {
@@ -23,87 +21,83 @@ let checkRequest = req => {
   });
 };
 
-let getUser = res => {
-  let options = {
-    uri: `${constants.DBUrl}/captains/?name=${res.captain}`,
-    json: true
+let getOptions = req => {
+  return {
+    pretty: !!req.query.pretty
   };
-  return rp(options).then(captains => {
-    if (captains.length === 1) {
-      return Promise.resolve({
-        user: captains[0],
-        req: res
-      });
-    }
-    return Promise.reject(`No captain found for: '${res.captain}'`);
-  });
 };
 
-let checkUser = res => {
-  let publicKey = res.user.publicKey.join('\n');
-  let key = ursa.createPublicKey(publicKey);
-  let verifier = ursa.createVerifier('sha256');
-  verifier.update(res.req.ship, 'utf8');
-  if (verifier.verify(key, res.req.signature, 'base64')) {
-    return Promise.resolve(res);
-  }
-  return Promise.reject(`Captain identification failed`);
+let authenticateShip = params => {
+  return dbUtilities.getCaptain(params.captain)
+    .then(captain => dbUtilities.checkCaptain(captain, params.ship, params.signature))
+    .then(captain => Promise.resolve({
+      captain: captain,
+      ship: params.ship
+    }));
 };
 
-let authenticateShip = res => {
-  return getUser(res)
-    .then(checkUser);
-};
-
-let postResult = info => {
-  return res => {
-    if (res.res === 'finished') {
-      let options = {
-        method: 'POST',
-        uri: `${constants.DBUrl}/scores/`,
-        body: {
-          captainId: info.user.id,
-          ship: info.req.ship,
-          cycles: res.cycles
-        },
-        json: true
-      };
-      return rp(options).then(() => res);
+let postResult = params => {
+  return stadiumResult => {
+    if (stadiumResult.result === 'finished') {
+      return dbUtilities.publishScore(params.captain, params.ship,
+          stadiumResult.cycles)
+        .then(() => Promise.resolve(Object.assign(params, {
+          cycles: stadiumResult.cycles
+        })));
     } else {
       return Promise.reject(`You crashed like a noob...`);
     }
   };
 };
 
-let runStadium = res => {
-  return stadium.run(res.req.ship)
-    .then(postResult(res));
+let getRank = params => {
+  let rankPromise = dbUtilities.getRankForCycles(params.cycles);
+  let shipNamePromise = stadium.getShipInfo(params.ship);
+  return Promise.all([rankPromise, shipNamePromise])
+    .then(results => Promise.resolve({
+      cycles: params.cycles,
+      rank: results[0],
+      ship: results[1].name
+    }));
 };
 
-let sendResult = res => {
-  return result => {
-    console.log(result);
-    res.json(result);
+let runStadium = params => {
+  return stadium.run(params.ship)
+    .then(postResult(params))
+    .then(getRank);
+};
+
+let sendResult = (res, options) => {
+  return params => {
+    if (options.pretty) {
+      res.send(`#${params.rank} ${params.ship} in ${params.cycles} cycles.\n`);
+    } else {
+      res.json(params);
+    }
   };
 };
 
-let handleError = res => {
+let handleError = (res, options) => {
   return err => {
-    console.error(err);
-    res.json({
-      error: {
-        message: err
-      }
-    });
+    if (options.pretty) {
+      res.send(err);
+    } else {
+      res.json({
+        error: {
+          message: err
+        }
+      });
+    }
   };
 };
 
 router.post('/', (req, res) => {
+  let options = getOptions(req);
   checkRequest(req)
     .then(authenticateShip)
     .then(runStadium)
-    .then(sendResult(res))
-    .catch(handleError(res));
+    .then(sendResult(res, options))
+    .catch(handleError(res, options));
 });
 
 module.exports = router;

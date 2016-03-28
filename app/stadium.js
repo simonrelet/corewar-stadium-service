@@ -2,6 +2,7 @@
 
 const fsp = require('fs-promise');
 const exec = require('child_process').exec;
+const constants = require('./constants');
 
 const SHIPS_PATH = 'bin/ships/';
 const COMMAND = 'java -jar bin/stadium.jar';
@@ -108,6 +109,14 @@ let run = (ship, options) => {
     .then(deleteShipFile);
 };
 
+let getShipInfo = ship => {
+  return Promise.resolve({
+    name: ship.substr(0, constants.shipNameLength).trim(),
+    comment: ship.substr(constants.shipNameLength, constants.shipCommentLength).trim()
+  });
+};
+
 module.exports = {
-  run: run
+  run: run,
+  getShipInfo: getShipInfo
 };
