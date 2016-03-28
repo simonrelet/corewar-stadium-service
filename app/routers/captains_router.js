@@ -1,11 +1,10 @@
 'use strict';
 
-const ursa = require('ursa');
-const rp = require('request-promise');
 const router = require('./default_router')();
 const constants = require('../constants');
-
-const NAME_REGEX = /^[a-z][a-z0-9_]*$/;
+const utilities = require('../utilities');
+const dbUtilities = require('../db_utilities');
+const rsaUtilities = require('../rsa_utilities');
 
 let getOptions = req => {
   return {
@@ -15,10 +14,10 @@ let getOptions = req => {
 
 let checkRequest = req => {
   if (!req.body.name) {
-    return Promise.reject(`You'r no captain without a name!`);
+    return utilities.error(constants.errors.missingName);
   }
   if (!req.body.key) {
-    return Promise.reject(`Did you forgot your key?`);
+    return utilities.error(constants.errors.missingKey);
   }
   return Promise.resolve({
     name: req.body.name,
@@ -27,42 +26,32 @@ let checkRequest = req => {
 };
 
 let checkCaptainName = captain => {
-  if (!NAME_REGEX.test(captain.name)) {
-    return Promise.reject(`A captain's name should respect: ${NAME_REGEX}`);
+  if (!constants.nameRegex.test(captain.name)) {
+    return utilities.error(constants.errors.invalidName);
   } else {
-    let options = {
-      uri: `${constants.DBUrl}/captains/?name=${captain.name}`,
-      json: true
-    };
-    return rp(options).then(captains => {
-      if (captains.length === 0) {
+    return dbUtilities.getCaptain(captain.name)
+      .then(res => {
+        if (res) {
+          return utilities.error(constants.errors.captainAlreadyExists);
+        }
         return Promise.resolve(captain);
-      }
-      return Promise.reject(`A captain already exists by this name.`);
-    });
+      });
   }
 };
 
 let checkCaptainKey = captain => {
-  try {
-    ursa.createPublicKey(captain.key);
-  } catch (err) {
-    return Promise.reject('Invalid key, it should be a public key in PEM format.');
-  }
-  return Promise.resolve(captain);
+  return rsaUtilities.isPublicKey(captain.key)
+    .then(res => {
+      if (res) {
+        return Promise.resolve(captain);
+      }
+      return utilities.error(constants.errors.invalidKey);
+    });
 };
 
 let registerCaptain = captain => {
-  let options = {
-    method: 'POST',
-    uri: `${constants.DBUrl}/captains/`,
-    body: {
-      name: captain.name,
-      publicKey: captain.key.split('\n')
-    },
-    json: true
-  };
-  return rp(options).then(() => `Captain ${captain.name} has been registered!`);
+  return dbUtilities.registerCaptain(captain.name, captain.key)
+    .then(() => `Captain ${captain.name} has been registered!`);
 };
 
 let sendResult = (res, options) => {
@@ -79,14 +68,11 @@ let sendResult = (res, options) => {
 
 let handleError = (res, options) => {
   return err => {
-    res.status(constants.status.badRequest);
     if (options.pretty) {
-      res.send(`${err}\n`);
+      res.send(`${err.message}\n`);
     } else {
       res.json({
-        error: {
-          message: err
-        }
+        error: err.message
       });
     }
   };

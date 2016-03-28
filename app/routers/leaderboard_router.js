@@ -2,7 +2,6 @@
 
 const router = require('./default_router')();
 const dbUtilities = require('../db_utilities');
-const constants = require('../constants');
 const prettyPrinter = require('../pretty_printer');
 
 let getOptions = req => {
@@ -12,11 +11,7 @@ let getOptions = req => {
 };
 
 let getScores = () => {
-  return dbUtilities.getScores()
-    .catch(err => Promise.reject({
-      status: constants.status.serverError,
-      message: err
-    }));
+  return dbUtilities.getScores();
 };
 
 let prettyPrintScores = scores => {
@@ -52,13 +47,12 @@ let sendResult = (res, options) => {
 
 let handleError = (res, options) => {
   return err => {
-    res.status(err.status);
     if (options.pretty) {
-      res.send(`${err}\n`);
+      res.send(`${err.message}\n`);
     } else {
       res.json({
         error: {
-          message: err
+          message: err.message
         }
       });
     }

@@ -1,8 +1,8 @@
 'use strict';
 
 const rp = require('request-promise');
-const ursa = require('ursa');
 const constants = require('./constants');
+const utilities = require('./utilities');
 const stadium = require('./stadium');
 
 let getCaptain = captainName => {
@@ -10,26 +10,29 @@ let getCaptain = captainName => {
     uri: `${constants.DBUrl}/captains/?name=${captainName}`,
     json: true
   };
-  return rp(options).then(captains => {
-    if (captains.length === 1) {
-      return Promise.resolve(captains[0]);
-    }
-    return Promise.reject(`The captain ${captainName} doesn't exist.`);
-  });
+  return rp(options)
+    .catch(() => utilities.error(constants.errors.dbError))
+    .then(captains => {
+      if (captains.length === 1) {
+        return Promise.resolve(captains[0]);
+      }
+      return Promise.resolve(null);
+    });
 };
 
-let checkCaptain = (captain, value, signature) => {
-  return new Promise((resolve, reject) => {
-    let publicKey = captain.publicKey.join('\n');
-    let key = ursa.createPublicKey(publicKey);
-    let verifier = ursa.createVerifier('sha256');
-    verifier.update(value, 'utf8');
-    if (verifier.verify(key, signature, 'base64')) {
-      resolve(captain);
-    } else {
-      reject(`Captain identification failed`);
-    }
-  });
+let registerCaptain = (name, key) => {
+  let options = {
+    method: 'POST',
+    uri: `${constants.DBUrl}/captains/`,
+    body: {
+      name: name,
+      publicKey: key.split('\n')
+    },
+    json: true
+  };
+  return rp(options)
+    .catch(() => utilities.error(constants.errors.dbError))
+    .then(() => Promise.resolve('ok'));
 };
 
 let toPublicScore = score => {
@@ -48,19 +51,21 @@ let getScore = (captain, shipInfo) => {
     uri: `${constants.DBUrl}/scores/?${req}&_expand=captain`,
     json: true
   };
-  return rp(options).then(scores => {
-    if (scores.length === 1) {
-      return Promise.resolve(toPublicScore(scores[0]));
-    }
-    return Promise.resolve(null);
-  });
+  return rp(options)
+    .catch(() => utilities.error(constants.errors.dbError))
+    .then(scores => {
+      if (scores.length === 1) {
+        return Promise.resolve(toPublicScore(scores[0]));
+      }
+      return Promise.resolve(null);
+    });
 };
 
 let addUpdateScore = (captain, shipInfo, ship, cycles) => {
   return getScore(captain, shipInfo)
     .then(score => {
       if (!!score && score.cycles < cycles) {
-        return Promise.resolve('You cannot downgrade a ship score!');
+        return Promise.resolve('ko');
       }
 
       let options = {
@@ -75,7 +80,9 @@ let addUpdateScore = (captain, shipInfo, ship, cycles) => {
         },
         json: true
       };
-      return rp(options).then(() => Promise.resolve('ok'));
+      return rp(options)
+        .catch(() => utilities.error(constants.errors.dbError))
+        .then(() => Promise.resolve('ok'));
     });
 };
 
@@ -89,7 +96,9 @@ let getRankForCycles = cycles => {
     uri: `${constants.DBUrl}/scores/?cycles_lte=${cycles - 1}`,
     json: true
   };
-  return rp(options).then(scores => Promise.resolve(scores.length + 1));
+  return rp(options)
+    .catch(() => utilities.error(constants.errors.dbError))
+    .then(scores => Promise.resolve(scores.length + 1));
 };
 
 let getScores = () => {
@@ -97,14 +106,16 @@ let getScores = () => {
     uri: `${constants.DBUrl}/scores/?_expand=captain&_sort=cycles&_order=ASC`,
     json: true
   };
-  return rp(options).then(scores => {
-    return Promise.resolve(scores.map(toPublicScore));
-  });
+  return rp(options)
+    .catch(() => utilities.error(constants.errors.dbError))
+    .then(scores => {
+      return Promise.resolve(scores.map(toPublicScore));
+    });
 };
 
 module.exports = {
   getCaptain: getCaptain,
-  checkCaptain: checkCaptain,
+  registerCaptain: registerCaptain,
   publishScore: publishScore,
   getRankForCycles: getRankForCycles,
   getScores: getScores

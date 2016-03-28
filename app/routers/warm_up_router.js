@@ -3,6 +3,7 @@
 const stadium = require('../stadium');
 const router = require('./default_router')();
 const constants = require('../constants');
+const utilities = require('../utilities');
 
 const NUMBER_REGEX = /^[0-9]+$/;
 
@@ -10,10 +11,7 @@ let checkRequest = req => {
   if (req.body.ship) {
     return Promise.resolve(req.body.ship);
   } else {
-    return Promise.reject({
-      status: constants.status.badRequest,
-      message: `Where's the ship dude?`
-    });
+    return utilities.error(constants.errors.missingShip);
   }
 };
 
@@ -42,11 +40,7 @@ let getOptions = req => {
 };
 
 let runStadium = options => {
-  return ship => stadium.run(ship, options)
-    .catch(err => Promise.reject({
-      status: constants.status.serverError,
-      message: err
-    }));
+  return ship => stadium.run(ship, options);
 };
 
 let sendResult = (res, options) => {
@@ -63,7 +57,7 @@ let handleError = (res, options) => {
   return err => {
     res.status(err.status);
     if (options.pretty) {
-      res.send(`${err}\n`);
+      res.send(`${err.message}\n`);
     } else {
       res.json({
         error: {

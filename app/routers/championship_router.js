@@ -3,25 +3,26 @@
 const stadium = require('../stadium');
 const router = require('./default_router')();
 const dbUtilities = require('../db_utilities');
+const rsaUtilities = require('../rsa_utilities');
+const utilities = require('../utilities');
 const constants = require('../constants');
 const prettyPrinter = require('../pretty_printer');
 
-let getBadRequestError = message => {
+let getOptions = req => {
   return {
-    status: constants.status.badRequest,
-    message: message
+    pretty: !!req.query.pretty
   };
 };
 
 let checkRequest = req => {
   if (!req.body.captain) {
-    return Promise.reject(getBadRequestError(`A ship needs it's captain!`));
+    return utilities.error(constants.errors.missingName);
   }
   if (!req.body.ship) {
-    return Promise.reject(getBadRequestError(`Where's the ship dude?`));
+    return utilities.error(constants.errors.missingShip);
   }
   if (!req.body.signature) {
-    return Promise.reject(getBadRequestError(`Are you a pirate? Go sign your ship.`));
+    return utilities.error(constants.errors.missingSignature);
   }
   return Promise.resolve({
     captain: req.body.captain,
@@ -30,20 +31,23 @@ let checkRequest = req => {
   });
 };
 
-let getOptions = req => {
-  return {
-    pretty: !!req.query.pretty
-  };
-};
-
 let authenticateShip = params => {
   return dbUtilities.getCaptain(params.captain)
-    .then(captain => dbUtilities.checkCaptain(captain, params.ship, params.signature))
-    .then(captain => Promise.resolve({
-      captain: captain,
-      ship: params.ship
-    }))
-    .catch(err => Promise.reject(getBadRequestError(err)));
+    .then(captain => {
+      if (captain) {
+        return rsaUtilities.checkCaptain(captain, params.ship, params.signature);
+      }
+      return utilities.error(constants.errors.noCaptainFound);
+    })
+    .then(captain => {
+      if (captain) {
+        return Promise.resolve({
+          captain: captain,
+          ship: params.ship
+        });
+      }
+      return utilities.error(constants.errors.rsaKeysNotMatching);
+    });
 };
 
 let postResult = params => {
@@ -51,26 +55,16 @@ let postResult = params => {
     if (stadiumResult.result === 'finished') {
       return dbUtilities.publishScore(params.captain, params.ship,
           stadiumResult.cycles)
-        .catch(err => Promise.reject({
-          status: constants.status.serverError,
-          message: err
-        }))
         .then(res => {
           if (res === 'ok') {
             return Promise.resolve(Object.assign(params, {
               cycles: stadiumResult.cycles
             }));
           }
-          return Promise.reject({
-            status: constants.status.ok,
-            message: res
-          });
+          return utilities.error(constants.errors.downgradingScore);
         });
     } else {
-      return Promise.reject({
-        status: constants.status.ok,
-        message: `You crashed like a noob...`
-      });
+      return utilities.error(constants.errors.publishCrashed);
     }
   };
 };
@@ -85,19 +79,11 @@ let getRank = params => {
       shipName: results[1].name,
       shipComment: results[1].comment,
       captain: params.captain
-    }))
-    .catch(err => Promise.reject({
-      status: constants.status.serverError,
-      message: err
     }));
 };
 
 let runStadium = params => {
   return stadium.run(params.ship)
-    .catch(err => Promise.reject({
-      status: constants.status.serverError,
-      message: err
-    }))
     .then(postResult(params))
     .then(getRank);
 };
@@ -120,7 +106,6 @@ let sendResult = (res, options) => {
 
 let handleError = (res, options) => {
   return err => {
-    res.status(err.status);
     if (options.pretty) {
       res.send(`${err.message}\n`);
     } else {
