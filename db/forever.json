@@ -1,0 +1,5 @@
+{
+  "uid": "stadium-db",
+  "script": "node_modules/json-server/bin/index.js",
+  "args": ["--watch", "db/db.json", "-p", "4203"]
+}
