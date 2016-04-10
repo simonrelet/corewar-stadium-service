@@ -5,7 +5,7 @@ const columnify = require('columnify');
 const CYCLES_REGEX = /(\d+)(\d{3})/;
 
 let prettyCycles = cycles => {
-  let res = cycles;
+  let res = `${cycles}`;
   while (CYCLES_REGEX.test(res)) {
     res = res.replace(CYCLES_REGEX, '$1 $2');
   }
@@ -46,5 +46,6 @@ let printScores = scores => {
 };
 
 module.exports = {
-  scores: printScores
+  scores: printScores,
+  cycles: prettyCycles
 };
