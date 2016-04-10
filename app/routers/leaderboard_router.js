@@ -10,28 +10,31 @@ let getOptions = req => {
   };
 };
 
-let getScores = () => {
-  return dbUtilities.getScores();
-};
-
-let prettyPrintScores = scores => {
+let toPublicScore = scores => {
   let ranking = {
     cycles: 0,
     rank: 0
   };
-  scores = scores.map((score, index) => {
+  return scores.map((score, index) => {
     if (score.cycles > ranking.cycles) {
       ranking.cycles = score.cycles;
       ranking.rank = index + 1;
     }
     return {
       rank: ranking.rank,
-      cycles: score.cycles,
+      cycles: prettyPrinter.cycles(score.cycles),
       name: score.shipName,
       captain: score.captain,
       comment: score.shipComment
     };
   });
+};
+
+let getScores = () => {
+  return toPublicScore(dbUtilities.getScores());
+};
+
+let prettyPrintScores = scores => {
   return prettyPrinter.scores(scores);
 };
 
