@@ -6,8 +6,10 @@
   "scripts": {
     "clean": "rm -fr logs",
     "dist-clean": "npm run clean node_modules",
-    "start": "mkdir -p logs && forever start -p logs/ -l forever.log -a -o logs/out.log -e logs/err.log app/corewar_stadium_service.js",
-    "stop": "forever stop app/corewar_stadium_service.js",
+    "start": "mkdir -p logs && forever start --uid stadium -p logs/ -l forever.log -a -o logs/out.log -e logs/err.log app/corewar_stadium_service.js",
+    "stop": "forever stop stadium",
+    "start-db": "mkdir -p logs && forever start -p logs/ -l forever-db.log -a -o logs/out-db.log -e logs/err-db.log db/forever.json",
+    "stop-db": "forever stop stadium-db",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Simon Relet",
@@ -17,6 +19,7 @@
     "columnify": "^1.5.4",
     "express": "^4.13.3",
     "fs-promise": "^0.5.0",
+    "json-server": "^0.8.9",
     "request-promise": "^2.0.1",
     "ursa": "^0.9.3"
   }
