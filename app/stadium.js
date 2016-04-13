@@ -6,7 +6,7 @@ const constants = require('./constants');
 const utilities = require('./utilities');
 
 const SHIPS_PATH = 'bin/ships/';
-const COMMAND = 'java -jar bin/stadium.jar';
+const COMMAND = `java -jar bin/${constants.config.bin}`;
 const errors = constants.errors.stadium;
 
 let ensureTmpDir = () => {

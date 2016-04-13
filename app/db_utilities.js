@@ -7,7 +7,7 @@ const stadium = require('./stadium');
 
 let getCaptain = captainName => {
   let options = {
-    uri: `${constants.DBUrl}/captains/?name=${captainName}`,
+    uri: `${constants.config.dbUrl}/captains/?name=${captainName}`,
     json: true
   };
   return rp(options)
@@ -23,7 +23,7 @@ let getCaptain = captainName => {
 let registerCaptain = (name, key) => {
   let options = {
     method: 'POST',
-    uri: `${constants.DBUrl}/captains/`,
+    uri: `${constants.config.dbUrl}/captains/`,
     body: {
       name: name,
       publicKey: key.split('\n')
@@ -48,7 +48,7 @@ let toPublicScore = score => {
 let getScore = (captain, shipInfo) => {
   let req = `captainId=${captain.id}&shipName=${shipInfo.name}`;
   let options = {
-    uri: `${constants.DBUrl}/scores/?${req}&_expand=captain`,
+    uri: `${constants.config.dbUrl}/scores/?${req}&_expand=captain`,
     json: true
   };
   return rp(options)
@@ -70,7 +70,7 @@ let addUpdateScore = (captain, shipInfo, ship, cycles) => {
 
       let options = {
         method: !!score ? 'PATCH' : 'POST',
-        uri: `${constants.DBUrl}/scores/${!!score ? score.id : ''}`,
+        uri: `${constants.config.dbUrl}/scores/${!!score ? score.id : ''}`,
         body: {
           captainId: captain.id,
           shipName: shipInfo.name,
@@ -93,7 +93,7 @@ let publishScore = (captain, ship, cycles) => {
 
 let getRankForCycles = cycles => {
   let options = {
-    uri: `${constants.DBUrl}/scores/?cycles_lte=${cycles - 1}`,
+    uri: `${constants.config.dbUrl}/scores/?cycles_lte=${cycles - 1}`,
     json: true
   };
   return rp(options)
@@ -103,7 +103,7 @@ let getRankForCycles = cycles => {
 
 let getScores = () => {
   let options = {
-    uri: `${constants.DBUrl}/scores/?_expand=captain&_sort=cycles&_order=ASC`,
+    uri: `${constants.config.dbUrl}/scores/?_expand=captain&_sort=cycles&_order=ASC`,
     json: true
   };
   return rp(options)
