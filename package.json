@@ -2,11 +2,11 @@
   "name": "corewar-stadium-service",
   "version": "0.6.1",
   "description": "The coreware stadium service",
-  "main": "app/corewar_stadium_service.js",
+  "main": "app/index.js",
   "scripts": {
     "clean": "rm -fr logs",
     "dist-clean": "npm run clean node_modules",
-    "start": "mkdir -p logs && forever start --uid stadium -p logs/ -l forever.log -a -o logs/out.log -e logs/err.log app/corewar_stadium_service.js",
+    "start": "mkdir -p logs && forever start --uid stadium -p logs/ -l forever.log -a -o logs/out.log -e logs/err.log app/index.js",
     "stop": "forever stop stadium",
     "start-db": "mkdir -p logs && forever start -p logs/ -l forever-db.log -a -o logs/out-db.log -e logs/err-db.log db/forever.json",
     "stop-db": "forever stop stadium-db",
