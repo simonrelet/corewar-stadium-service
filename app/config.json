@@ -1,0 +1,5 @@
+{
+  "port": 4202,
+  "dbUrl": "http://localhost:4203",
+  "bin": "stadium.jar"
+}

@@ -1,9 +1,16 @@
 'use strict';
 
-let nameRegex = /^[a-z][a-z0-9_]*$/;
+const config = require('./config.json');
+
+const nameRegex = /^[a-z][a-z0-9_]*$/;
+const defaultConfig = {
+  port: 4202,
+  dbUrl: 'http://localhost:4203',
+  bin: 'stadium.jar'
+};
 
 let constants = {
-  DBUrl: 'http://localhost:4203',
+  config: Object.assign(defaultConfig, config),
   nameRegex: nameRegex,
   shipNameLength: 32,
   shipCommentLength: 128,
